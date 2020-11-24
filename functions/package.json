@@ -1,0 +1,24 @@
+{
+  "name": "functions",
+  "scripts": {
+    "build": "tsc",
+    "serve": "pnpm run build && firebase emulators:start --only functions",
+    "shell": "pnpm run build && firebase functions:shell",
+    "start": "pnpm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "8"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase": "^8.1.1",
+    "firebase-admin": "8.x",
+    "firebase-functions": "^3.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^3.8.0"
+  },
+  "private": true
+}
