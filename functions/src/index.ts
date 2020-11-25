@@ -6,6 +6,18 @@ admin.initializeApp()
 
 const fs = admin.firestore()
 
+export const createUserDocument = functions.auth
+  .user()
+  .onCreate(({ displayName, uid, photoURL, email }) => {
+    return fs.collection('users').doc(uid).set({
+      displayName,
+      email,
+      uid,
+      photoURL,
+      favorites: [],
+    })
+  })
+
 export const aggregatePostsCreate = functions.firestore
   .document('posts/{postId}')
   .onCreate(() => {
