@@ -5,10 +5,12 @@ export type User = Pick<
   'displayName' | 'email' | 'uid' | 'photoURL'
 > & {
   favorites: string[]
+  posts: number
 }
 
 export type Post = {
   url: string
+  thumbUrl: string
   location: string
   date: firebase.firestore.FieldValue | firebase.firestore.Timestamp
 } & Pick<User, 'uid'>
