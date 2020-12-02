@@ -4,12 +4,13 @@ import { Aggregates, Post, User } from './types'
 
 admin.initializeApp()
 
-const fs = admin.firestore()
+const firestore = admin.firestore()
+const storage = admin.storage().bucket()
 
 export const createUserDocument = functions.auth
   .user()
   .onCreate(({ displayName, uid, photoURL, email }) => {
-    return fs.collection('users').doc(uid).set({
+    return firestore.collection('users').doc(uid).set({
       displayName,
       email,
       uid,
@@ -24,16 +25,16 @@ export const aggregatePostsCreate = functions.firestore
   .onCreate(post => {
     const { uid } = post.data() as Post
 
-    const postCountRef = fs.collection('aggregates').doc('posts')
-    const userDocRef = fs.collection('users').doc(uid)
+    const postCountRef = firestore.collection('aggregates').doc('posts')
+    const userDocRef = firestore.collection('users').doc(uid)
 
     return Promise.all([
-      fs.runTransaction(async transaction => {
+      firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(postCountRef)
         const data = snapshot.data() as Aggregates
         return transaction.set(postCountRef, { ...data, count: data.count + 1 })
       }),
-      fs.runTransaction(async transaction => {
+      firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(userDocRef)
         const data = snapshot.data() as User
         const newData: User = { ...data, posts: data.posts + 1 }
@@ -47,16 +48,16 @@ export const aggregatePostsDelete = functions.firestore
   .onDelete(post => {
     const { uid } = post.data() as Post
 
-    const postCountRef = fs.collection('aggregates').doc('posts')
-    const userDocRef = fs.collection('users').doc(uid)
+    const postCountRef = firestore.collection('aggregates').doc('posts')
+    const userDocRef = firestore.collection('users').doc(uid)
 
     return Promise.all([
-      fs.runTransaction(async transaction => {
+      firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(postCountRef)
         const data = snapshot.data() as Aggregates
         return transaction.set(postCountRef, { ...data, count: data.count - 1 })
       }),
-      fs.runTransaction(async transaction => {
+      firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(userDocRef)
         const data = snapshot.data() as User
         const newData: User = { ...data, posts: data.posts - 1 }
@@ -65,10 +66,29 @@ export const aggregatePostsDelete = functions.firestore
     ])
   })
 
-// export const compressPost = functions.storage.object().onFinalize(async obj => {
-//   const { name, contentType } = obj
-//   const filename = (<string>name).split('/')[1]
-//   const tempPath = path.join(os.tmpdir(), <string>filename)
-//   await st.file(<string>name).download({ destination: tempPath })
-//   const file = await imagemin([tempPath], {})
-// })
+// export const createPostThumbnail = functions.firestore
+//   .document('posts/{postId}')
+//   .onCreate(async snapshot => {
+//     const postData = snapshot.data() as Post
+
+//     const tempPath = path.join(os.tmpdir(), `thumb-${snapshot.id}.jpeg`)
+
+//     const res = await fetch(postData.url)
+//     const buffer = await res.buffer()
+
+//     return gm(buffer)
+//       .compress('JPEG')
+//       .write(tempPath, async err => {
+//         if (err) {
+//           return console.log('Error Compressing!', { err })
+//         }
+
+//         const uploadRes = await storage.upload(tempPath)
+//         const thumbUrl = await uploadRes[0].getSignedUrl({
+//           action: 'read',
+//           expires: '03-09-2491',
+//         })
+
+//         return snapshot.ref.update({ thumbUrl })
+//       })
+//   })
