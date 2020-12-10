@@ -1,5 +1,4 @@
 import firebase from 'firebase/app'
-import { NextApiRequest, NextApiResponse } from 'next'
 
 export type User = Pick<
   firebase.User,

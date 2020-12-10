@@ -1,8 +1,17 @@
 import * as admin from 'firebase-admin'
 import * as functions from 'firebase-functions'
 import { Aggregates, Post, User } from './types'
+import * as sharp from 'sharp'
+import fetch from 'node-fetch'
+import * as path from 'path'
+import * as os from 'os'
+import * as fs from 'fs'
+const serviceAccount = require('../serviceAccount.json')
 
-admin.initializeApp()
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  storageBucket: 'ngabolang.appspot.com',
+})
 
 const firestore = admin.firestore()
 const storage = admin.storage().bucket()
@@ -66,29 +75,49 @@ export const aggregatePostsDelete = functions.firestore
     ])
   })
 
-// export const createPostThumbnail = functions.firestore
-//   .document('posts/{postId}')
-//   .onCreate(async snapshot => {
-//     const postData = snapshot.data() as Post
+export const createPostThumbnail = functions.firestore
+  .document('posts/{postId}')
+  .onCreate(async snapshot => {
+    const postData = snapshot.data() as Post
+    console.log(
+      `Starting compression on ${snapshot.id}, Original Image: ${postData.url}`
+    )
 
-//     const tempPath = path.join(os.tmpdir(), `thumb-${snapshot.id}.jpeg`)
+    const tempPath = path.join(os.tmpdir(), `thumb-${snapshot.id}.jpeg`)
 
-//     const res = await fetch(postData.url)
-//     const buffer = await res.buffer()
+    const res = await fetch(postData.url)
+    const buffer = await res.buffer()
 
-//     return gm(buffer)
-//       .compress('JPEG')
-//       .write(tempPath, async err => {
-//         if (err) {
-//           return console.log('Error Compressing!', { err })
-//         }
+    try {
+      await sharp(buffer).resize(300).toFormat('jpeg').toFile(tempPath)
+      const uploadRes = await storage.upload(tempPath)
+      const thumbUrl = await uploadRes[0].getSignedUrl({
+        action: 'read',
+        expires: '03-09-2491',
+      })
 
-//         const uploadRes = await storage.upload(tempPath)
-//         const thumbUrl = await uploadRes[0].getSignedUrl({
-//           action: 'read',
-//           expires: '03-09-2491',
-//         })
+      console.log(`Created Thumbnail, ${thumbUrl}`)
+      fs.unlinkSync(tempPath)
+      console.log('FUCKING DELTETED')
 
-//         return snapshot.ref.update({ thumbUrl })
-//       })
-//   })
+      return snapshot.ref.set({ ...postData, thumbUrl: thumbUrl[0] })
+    } catch (e) {
+      return console.error({ error: e.message })
+    }
+
+    // return gm(buffer)
+    //   .compress('JPEG')
+    //   .write(tempPath, async err => {
+    //     if (err) {
+    //       return console.log('Error Compressing!', { err })
+    //     }
+
+    //     const uploadRes = await storage.upload(tempPath)
+    //     const thumbUrl = await uploadRes[0].getSignedUrl({
+    //       action: 'read',
+    //       expires: '03-09-2491',
+    //     })
+
+    //     return snapshot.ref.update({ thumbUrl })
+    //   })
+  })
